@@ -1,0 +1,343 @@
+#pragma once
+#include "MedianFilterForm.h"
+#include "SimpleFilterForm.h"
+
+#include <random>
+
+namespace ImageNoiseApp {
+
+    using namespace System;
+    using namespace System::ComponentModel;
+    using namespace System::Collections;
+    using namespace System::Windows::Forms;
+    using namespace System::Data;
+    using namespace System::Drawing;
+    using namespace System::Drawing::Imaging;
+
+    public ref class Form1 : public System::Windows::Forms::Form
+    {
+    public:
+        Form1(void)
+        {
+            InitializeComponent();
+            originalImage = nullptr;
+        }
+
+    protected:
+        ~Form1()
+        {
+            if (components)
+            {
+                delete components;
+            }
+            if (originalImage != nullptr)
+            {
+                delete originalImage;
+            }
+        }
+    private:
+        System::Windows::Forms::PictureBox^ originalPictureBox;
+        System::Windows::Forms::PictureBox^ noisyPictureBox;
+        System::Windows::Forms::Button^ loadButton;
+        System::Windows::Forms::Button^ applyNoiseButton;
+        System::Windows::Forms::NumericUpDown^ noiseLevelControl;
+        System::Windows::Forms::Label^ noiseLabel;
+        System::Windows::Forms::ListBox^ noiseTypeListBox;
+        System::Windows::Forms::Label^ noiseTypeLabel;
+        System::Windows::Forms::Button^ filterButton;
+        System::Windows::Forms::ListBox^ filterMethodListBox;
+        System::Windows::Forms::Label^ filterMethodLabel;
+        System::ComponentModel::Container^ components;
+        System::Windows::Forms::Button^ checkDevicesButton;
+        System::Windows::Forms::ListBox^ devicesListBox;
+
+        Bitmap^ originalImage;
+
+#pragma region Windows Form Designer generated code
+        void InitializeComponent(void)
+        {
+            this->filterButton = (gcnew System::Windows::Forms::Button());
+            this->originalPictureBox = (gcnew System::Windows::Forms::PictureBox());
+            this->noisyPictureBox = (gcnew System::Windows::Forms::PictureBox());
+            this->loadButton = (gcnew System::Windows::Forms::Button());
+            this->applyNoiseButton = (gcnew System::Windows::Forms::Button());
+            this->noiseLevelControl = (gcnew System::Windows::Forms::NumericUpDown());
+            this->noiseLabel = (gcnew System::Windows::Forms::Label());
+            this->noiseTypeListBox = (gcnew System::Windows::Forms::ListBox());
+            this->noiseTypeLabel = (gcnew System::Windows::Forms::Label());
+            this->filterMethodListBox = (gcnew System::Windows::Forms::ListBox());
+            this->filterMethodLabel = (gcnew System::Windows::Forms::Label());
+            //this->experimentButton = (gcnew System::Windows::Forms::Button());
+            (cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->originalPictureBox))->BeginInit();
+            (cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->noisyPictureBox))->BeginInit();
+            (cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->noiseLevelControl))->BeginInit();
+            this->SuspendLayout();
+
+            // originalPictureBox
+            this->originalPictureBox->Location = System::Drawing::Point(12, 12);
+            this->originalPictureBox->Name = L"originalPictureBox";
+            this->originalPictureBox->Size = System::Drawing::Size(300, 300);
+            this->originalPictureBox->SizeMode = PictureBoxSizeMode::Zoom;
+
+            // noisyPictureBox
+            this->noisyPictureBox->Location = System::Drawing::Point(318, 12);
+            this->noisyPictureBox->Name = L"noisyPictureBox";
+            this->noisyPictureBox->Size = System::Drawing::Size(300, 300);
+            this->noisyPictureBox->SizeMode = PictureBoxSizeMode::Zoom;
+
+            // loadButton
+            this->loadButton->Location = System::Drawing::Point(12, 318);
+            this->loadButton->Name = L"loadButton";
+            this->loadButton->Size = System::Drawing::Size(100, 30);
+            this->loadButton->Text = L"Load Image";
+            this->loadButton->UseVisualStyleBackColor = true;
+            this->loadButton->Click += gcnew System::EventHandler(this, &Form1::loadButton_Click);
+
+            // noiseTypeLabel
+            this->noiseTypeLabel->Location = System::Drawing::Point(118, 318);
+            this->noiseTypeLabel->Name = L"noiseTypeLabel";
+            this->noiseTypeLabel->Size = System::Drawing::Size(80, 30);
+            this->noiseTypeLabel->Text = L"Noise Type:";
+            this->noiseTypeLabel->TextAlign = ContentAlignment::MiddleRight;
+
+            // noiseTypeListBox
+            this->noiseTypeListBox->Location = System::Drawing::Point(204, 318);
+            this->noiseTypeListBox->Name = L"noiseTypeListBox";
+            this->noiseTypeListBox->Size = System::Drawing::Size(100, 43);
+            this->noiseTypeListBox->Items->AddRange(gcnew array<String^> { "Impulse", "Gaussian" });
+            this->noiseTypeListBox->SelectedIndex = 0;
+
+            // noiseLabel
+            this->noiseLabel->Location = System::Drawing::Point(310, 318);
+            this->noiseLabel->Name = L"noiseLabel";
+            this->noiseLabel->Size = System::Drawing::Size(80, 30);
+            this->noiseLabel->Text = L"Noise Level:";
+            this->noiseLabel->TextAlign = ContentAlignment::MiddleRight;
+
+            // noiseLevelControl
+            this->noiseLevelControl->Location = System::Drawing::Point(396, 322);
+            this->noiseLevelControl->Name = L"noiseLevelControl";
+            this->noiseLevelControl->Size = System::Drawing::Size(60, 20);
+            this->noiseLevelControl->Minimum = 0;
+            this->noiseLevelControl->Maximum = 100;
+            this->noiseLevelControl->Value = 30;
+
+            // applyNoiseButton
+            this->applyNoiseButton->Location = System::Drawing::Point(462, 318);
+            this->applyNoiseButton->Name = L"applyNoiseButton";
+            this->applyNoiseButton->Size = System::Drawing::Size(100, 30);
+            this->applyNoiseButton->Text = L"Apply Noise";
+            this->applyNoiseButton->UseVisualStyleBackColor = true;
+            this->applyNoiseButton->Enabled = false;
+            this->applyNoiseButton->Click += gcnew System::EventHandler(this, &Form1::applyNoiseButton_Click);
+
+            // filterMethodLabel
+            this->filterMethodLabel->Location = System::Drawing::Point(568, 318);
+            this->filterMethodLabel->Name = L"filterMethodLabel";
+            this->filterMethodLabel->Size = System::Drawing::Size(80, 30);
+            this->filterMethodLabel->Text = L"Filter Method:";
+            this->filterMethodLabel->TextAlign = ContentAlignment::MiddleRight;
+
+            // filterMethodListBox
+            this->filterMethodListBox->Location = System::Drawing::Point(654, 318);
+            this->filterMethodListBox->Name = L"filterMethodListBox";
+            this->filterMethodListBox->Size = System::Drawing::Size(100, 43);
+            this->filterMethodListBox->Items->AddRange(gcnew array<String^> { "OpenCL", "CPU" });
+            this->filterMethodListBox->SelectedIndex = 0;
+
+            // filterButton
+            this->filterButton->Location = System::Drawing::Point(760, 318);
+            this->filterButton->Name = L"filterButton";
+            this->filterButton->Size = System::Drawing::Size(100, 30);
+            this->filterButton->Text = L"Filter Image";
+            this->filterButton->UseVisualStyleBackColor = true;
+            this->filterButton->Enabled = false;
+            this->filterButton->Click += gcnew System::EventHandler(this, &Form1::filterButton_Click);
+
+            // checkDevicesButton
+            this->checkDevicesButton = (gcnew System::Windows::Forms::Button());
+            this->checkDevicesButton->Location = System::Drawing::Point(650, 60);
+            this->checkDevicesButton->Name = L"checkDevicesButton";
+            this->checkDevicesButton->Size = System::Drawing::Size(150, 30);
+            this->checkDevicesButton->Text = L"Check OpenCL Devices";
+            this->checkDevicesButton->UseVisualStyleBackColor = true;
+            this->checkDevicesButton->Click += gcnew System::EventHandler(this, &Form1::checkDevicesButton_Click);
+
+            // devicesListBox
+            this->devicesListBox = (gcnew System::Windows::Forms::ListBox());
+            this->devicesListBox->Location = System::Drawing::Point(650, 90);
+            this->devicesListBox->Name = L"devicesListBox";
+            this->devicesListBox->Size = System::Drawing::Size(200, 100);
+
+            // Добавить элементы на форму:
+            this->Controls->Add(this->checkDevicesButton);
+            this->Controls->Add(this->devicesListBox);
+
+         
+
+        
+            this->AutoScaleDimensions = System::Drawing::SizeF(6, 13);
+            this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
+            this->ClientSize = System::Drawing::Size(976, 380);  
+            //this->Controls->Add(this->experimentButton);
+            this->Controls->Add(this->filterButton);
+            this->Controls->Add(this->filterMethodListBox);
+            this->Controls->Add(this->filterMethodLabel);
+            this->Controls->Add(this->applyNoiseButton);
+            this->Controls->Add(this->noiseLevelControl);
+            this->Controls->Add(this->noiseLabel);
+            this->Controls->Add(this->noiseTypeListBox);
+            this->Controls->Add(this->noiseTypeLabel);
+            this->Controls->Add(this->loadButton);
+            this->Controls->Add(this->noisyPictureBox);
+            this->Controls->Add(this->originalPictureBox);
+            this->Name = L"Form1";
+            this->Text = L"Image Noise Generator";
+            (cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->originalPictureBox))->EndInit();
+            (cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->noisyPictureBox))->EndInit();
+            (cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->noiseLevelControl))->EndInit();
+            this->ResumeLayout(false);
+        }
+#pragma endregion
+
+    private:
+        Bitmap^ AddNoise(Bitmap^ original, int noiseLevel)
+        {
+            Bitmap^ noisy = gcnew Bitmap(original->Width, original->Height, PixelFormat::Format24bppRgb);
+            BitmapData^ srcData = original->LockBits(
+                System::Drawing::Rectangle(0, 0, original->Width, original->Height),
+                ImageLockMode::ReadOnly,
+                PixelFormat::Format24bppRgb);
+            BitmapData^ dstData = noisy->LockBits(
+                System::Drawing::Rectangle(0, 0, noisy->Width, noisy->Height),
+                ImageLockMode::ReadWrite,
+                PixelFormat::Format24bppRgb);
+
+            int stride = srcData->Stride;
+            int bytes = stride * srcData->Height;
+            IntPtr ptr = dstData->Scan0;
+            array<Byte>^ pixelData = gcnew array<Byte>(bytes);
+            Marshal::Copy(srcData->Scan0, pixelData, 0, bytes);
+
+            std::random_device rd;
+            std::mt19937 gen(rd());
+
+            if (noiseTypeListBox->SelectedIndex == 0) {  // Импульсный шум
+                std::uniform_real_distribution<> dis(0.0, 1.0);
+                float noiseProbability = noiseLevel / 100.0f;
+                for (int i = 0; i < bytes; i += 3) {
+                    if (dis(gen) < noiseProbability) {
+                        if (dis(gen) < 0.5) {
+                            pixelData[i] = 255;      // Белый пиксель (соль)
+                            pixelData[i + 1] = 255;
+                            pixelData[i + 2] = 255;
+                        }
+                        else {
+                            pixelData[i] = 0;        // Черный пиксель (перец)
+                            pixelData[i + 1] = 0;
+                            pixelData[i + 2] = 0;
+                        }
+                    }
+                }
+            }
+            else {  // Гауссовский шум
+                std::normal_distribution<> dis(0.0, noiseLevel);
+                for (int i = 0; i < bytes; i += 3) {
+                    int r = pixelData[i] + (int)dis(gen);
+                    int g = pixelData[i + 1] + (int)dis(gen);
+                    int b = pixelData[i + 2] + (int)dis(gen);
+                    pixelData[i] = (Byte)Math::Max(0, Math::Min(255, r));
+                    pixelData[i + 1] = (Byte)Math::Max(0, Math::Min(255, g));
+                    pixelData[i + 2] = (Byte)Math::Max(0, Math::Min(255, b));
+                }
+            }
+
+            Marshal::Copy(pixelData, 0, dstData->Scan0, bytes);
+            original->UnlockBits(srcData);
+            noisy->UnlockBits(dstData);
+            return noisy;
+        }
+
+        System::Void loadButton_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            OpenFileDialog^ openFileDialog = gcnew OpenFileDialog();
+            openFileDialog->Filter = "Image Files (*.bmp;*.jpg;*.png)|*.bmp;*.jpg;*.png|All files (*.*)|*.*";
+
+            if (openFileDialog->ShowDialog() == System::Windows::Forms::DialogResult::OK)
+            {
+                try
+                {
+                    if (originalImage != nullptr)
+                    {
+                        delete originalImage;
+                    }
+                    originalImage = gcnew Bitmap(openFileDialog->FileName);
+                    originalPictureBox->Image = originalImage;
+                    applyNoiseButton->Enabled = true;
+                    filterButton->Enabled = true;
+                    //experimentButton->Enabled = true;  
+                    noisyPictureBox->Image = AddNoise(originalImage, (int)noiseLevelControl->Value);
+                }
+                catch (Exception^ ex)
+                {
+                    MessageBox::Show("Error loading image: " + ex->Message);
+                }
+            }
+        }
+        System::Void checkDevicesButton_Click(System::Object^ sender, System::EventArgs^ e) {
+            devicesListBox->Items->Clear();
+
+            cl_uint numPlatforms = 0;
+            cl_int res = clGetPlatformIDs(0, nullptr, &numPlatforms);
+            if (res != CL_SUCCESS || numPlatforms == 0) {
+                devicesListBox->Items->Add("Платформы не найдены");
+                return;
+            }
+
+            std::vector<cl_platform_id> platforms(numPlatforms);
+            clGetPlatformIDs(numPlatforms, platforms.data(), nullptr);
+
+            for (cl_uint i = 0; i < numPlatforms; ++i) {
+                char platformName[128];
+                clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME, sizeof(platformName), platformName, nullptr);
+                devicesListBox->Items->Add(gcnew String("Платформа " + i + ": " + gcnew String(platformName)));
+
+                cl_uint numDevices = 0;
+                clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, 0, nullptr, &numDevices);
+                std::vector<cl_device_id> devices(numDevices);
+                clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, numDevices, devices.data(), nullptr);
+
+                for (cl_uint j = 0; j < numDevices; ++j) {
+                    char deviceName[128];
+                    clGetDeviceInfo(devices[j], CL_DEVICE_NAME, sizeof(deviceName), deviceName, nullptr);
+                    devicesListBox->Items->Add("  Устройство " + j + ": " + gcnew String(deviceName));
+                }
+            }
+        }
+        System::Void applyNoiseButton_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            if (originalImage != nullptr)
+            {
+                noisyPictureBox->Image = AddNoise(originalImage, (int)noiseLevelControl->Value);
+            }
+        }
+
+        System::Void filterButton_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            if (noisyPictureBox->Image != nullptr)
+            {
+                Bitmap^ noisy = gcnew Bitmap(noisyPictureBox->Image);
+                if (filterMethodListBox->SelectedIndex == 0) {  // OpenCL
+                    MedianFilterForm^ filterForm = gcnew MedianFilterForm(noisy);
+                    filterForm->ShowDialog();
+                }
+                else {  // CPU
+                    SimpleFilterForm^ filterForm = gcnew SimpleFilterForm(noisy);
+                    filterForm->ShowDialog();
+                }
+            }
+        }
+
+      
+    };
+}

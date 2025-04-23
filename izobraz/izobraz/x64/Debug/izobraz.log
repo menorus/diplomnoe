@@ -1,0 +1,12 @@
+﻿  MyForm.cpp
+  MyForm.obj : обнаружен модуль MSIL; для MSIL последовательная компоновка отключена; выполняется полная компоновка
+MyForm.obj : warning LNK4248: неразрешенная лексема TypeRef (01000028) для "_cl_device_id"; образ нельзя запустить
+MyForm.obj : warning LNK4248: неразрешенная лексема TypeRef (01000029) для "_cl_platform_id"; образ нельзя запустить
+MyForm.obj : warning LNK4248: неразрешенная лексема TypeRef (0100002A) для "_cl_context"; образ нельзя запустить
+MyForm.obj : warning LNK4248: неразрешенная лексема TypeRef (0100002B) для "_cl_command_queue"; образ нельзя запустить
+MyForm.obj : warning LNK4248: неразрешенная лексема TypeRef (0100002C) для "_cl_mem"; образ нельзя запустить
+MyForm.obj : warning LNK4248: неразрешенная лексема TypeRef (0100002D) для "_cl_sampler"; образ нельзя запустить
+MyForm.obj : warning LNK4248: неразрешенная лексема TypeRef (0100002E) для "_cl_program"; образ нельзя запустить
+MyForm.obj : warning LNK4248: неразрешенная лексема TypeRef (0100002F) для "_cl_kernel"; образ нельзя запустить
+MyForm.obj : warning LNK4248: неразрешенная лексема TypeRef (01000030) для "_cl_event"; образ нельзя запустить
+  izobraz.vcxproj -> C:\Users\79877\Downloads\Diplom-main\Diplom-main\izobraz\x64\Debug\izobraz.exe

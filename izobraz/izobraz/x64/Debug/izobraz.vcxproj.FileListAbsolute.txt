@@ -1,0 +1,2 @@
+C:\Users\79877\source\repos\izobraz\izobraz\x64\Debug\izobraz.vcxproj.AssemblyReference.cache
+C:\Users\79877\Downloads\Diplom-main\Diplom-main\izobraz\izobraz\x64\Debug\izobraz.vcxproj.AssemblyReference.cache
