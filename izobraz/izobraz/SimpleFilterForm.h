@@ -50,6 +50,8 @@ namespace ImageNoiseApp {
         System::Windows::Forms::Label^ filterTypeLabel;
         System::Windows::Forms::Label^ filterTimeLabel;  // Метка для времени фильтрации
         System::ComponentModel::Container^ components;
+        System::Windows::Forms::Button^ loadImageButton;
+
         Bitmap^ noisyImage;
         Bitmap^ filteredImage;
 
@@ -93,7 +95,7 @@ namespace ImageNoiseApp {
             this->filteredPictureBox->Size = System::Drawing::Size(300, 300);
             this->filteredPictureBox->SizeMode = PictureBoxSizeMode::Zoom;
 
-            this->filterTimeLabel->Location = System::Drawing::Point(318, 316);
+            this->filterTimeLabel->Location = System::Drawing::Point(400, 316);
             this->filterTimeLabel->Name = L"filterTimeLabel";
             this->filterTimeLabel->Size = System::Drawing::Size(300, 20);
             this->filterTimeLabel->Text = L"Filter Time: N/A";
@@ -131,6 +133,16 @@ namespace ImageNoiseApp {
             this->applyFilterButton->Text = L"Apply Filter";
             this->applyFilterButton->UseVisualStyleBackColor = true;
             this->applyFilterButton->Click += gcnew System::EventHandler(this, &SimpleFilterForm::applyFilterButton_Click);
+
+            this->loadImageButton = (gcnew System::Windows::Forms::Button());
+            this->loadImageButton->Location = System::Drawing::Point(70, 272);
+            this->loadImageButton->Name = L"loadImageButton";
+            this->loadImageButton->Size = System::Drawing::Size(100, 30);
+            this->loadImageButton->Text = L"Load Image";
+            this->loadImageButton->UseVisualStyleBackColor = true;
+            this->loadImageButton->Click += gcnew System::EventHandler(this, &SimpleFilterForm::loadImageButton_Click);
+            this->Controls->Add(this->loadImageButton);
+
 
             this->AutoScaleDimensions = System::Drawing::SizeF(6, 13);
             this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
@@ -242,7 +254,7 @@ namespace ImageNoiseApp {
 
                 // Останавливаем таймер
                 sw->Stop();
-                double elapsedSeconds = sw->ElapsedMilliseconds / 1000.0;
+                double elapsedHighRes = static_cast<double>(sw->ElapsedTicks) / Stopwatch::Frequency;
 
                 Marshal::Copy(dstPixels, 0, dstData->Scan0, bytes);
                 noisyImage->UnlockBits(srcData);
@@ -254,7 +266,8 @@ namespace ImageNoiseApp {
 
                 // Обновляем метку с временем
                 String^ filterType = filterTypeListBox->SelectedIndex == 0 ? "Median" : "Mean";
-                filterTimeLabel->Text = String::Format("Filter Time: {0:F3} s ({1})", elapsedSeconds, filterType);
+                filterTimeLabel->Text =
+                    String::Format("Filter Time: {0:F6} s ({1})", elapsedHighRes,filterType);
             }
             catch (Exception^ ex)
             {
@@ -266,5 +279,26 @@ namespace ImageNoiseApp {
         {
             ProcessImage();
         }
+        private: System::Void loadImageButton_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            OpenFileDialog^ openFileDialog = gcnew OpenFileDialog();
+            openFileDialog->Filter = "Image Files|*.bmp;*.jpg;*.jpeg;*.png";
+
+            if (openFileDialog->ShowDialog() == System::Windows::Forms::DialogResult::OK)
+            {
+                Bitmap^ newImage = dynamic_cast<Bitmap^>(Image::FromFile(openFileDialog->FileName));
+                if (noisyImage != nullptr) delete noisyImage;
+                noisyImage = newImage;
+                noisyPictureBox->Image = noisyImage;
+
+                // Очищаем предыдущий результат
+                if (filteredImage != nullptr) {
+                    delete filteredImage;
+                    filteredImage = nullptr;
+                    filteredPictureBox->Image = nullptr;
+                }
+            }
+        }
+
     };
 }

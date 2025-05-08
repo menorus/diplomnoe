@@ -1,7 +1,11 @@
-#pragma once
+﻿#pragma once
+#define CL_HPP_TARGET_OPENCL_VERSION 200
+#define CL_HPP_MINIMUM_OPENCL_VERSION 120
 
 #include <CL/cl.hpp>
 #include <vector>
+
+std::vector<cl_device_id> availableDevices1;
 
 namespace ImageNoiseApp {
 
@@ -13,7 +17,7 @@ namespace ImageNoiseApp {
     using namespace System::Drawing;
     using namespace System::Drawing::Imaging;
     using namespace System::Runtime::InteropServices;
-    using namespace System::Diagnostics;  // ��� Stopwatch
+    using namespace System::Diagnostics;  // Для Stopwatch
 
     public ref class MedianFilterForm : public System::Windows::Forms::Form
     {
@@ -22,10 +26,15 @@ namespace ImageNoiseApp {
         {
             InitializeComponent();
             this->noisyImage = noisyImage;
-            InitializeOpenCL();
-            ProcessImage();  // ��������� ������ ��� �������
-        }
 
+            checkDevicesButton_Click(nullptr, nullptr); 
+            if (availableDevices1.size() > 0) {
+                selectedDeviceIndex = 0;
+                this->devicesListBox->SelectedIndex = 0;
+            }
+            InitializeOpenCL(); 
+            ProcessImage();
+        }
     protected:
         ~MedianFilterForm()
         {
@@ -60,10 +69,16 @@ namespace ImageNoiseApp {
         System::Windows::Forms::Label^ filterSizeLabel;
         System::Windows::Forms::ListBox^ filterTypeListBox;
         System::Windows::Forms::Label^ filterTypeLabel;
-        System::Windows::Forms::Label^ filterTimeLabel;  // ����� ��� ������� ����������
+        System::Windows::Forms::Label^ filterTimeLabel;  // Метка для времени фильтрации
         System::ComponentModel::Container^ components;
+        System::Windows::Forms::Button^ loadImageButton;
+        System::Windows::Forms::Button^ checkDevicesButton;
+        System::Windows::Forms::ListBox^ devicesListBox;
+
         Bitmap^ noisyImage;
         Bitmap^ filteredImage;
+       
+        int selectedDeviceIndex = -1;
 
         cl::Platform* platform;
         cl::Device* device;
@@ -113,7 +128,7 @@ namespace ImageNoiseApp {
             this->filteredPictureBox->Size = System::Drawing::Size(300, 300);
             this->filteredPictureBox->SizeMode = PictureBoxSizeMode::Zoom;
 
-            this->filterTimeLabel->Location = System::Drawing::Point(318, 316);
+            this->filterTimeLabel->Location = System::Drawing::Point(400, 316);
             this->filterTimeLabel->Name = L"filterTimeLabel";
             this->filterTimeLabel->Size = System::Drawing::Size(300, 20);
             this->filterTimeLabel->Text = L"Filter Time: N/A";
@@ -152,9 +167,40 @@ namespace ImageNoiseApp {
             this->applyFilterButton->UseVisualStyleBackColor = true;
             this->applyFilterButton->Click += gcnew System::EventHandler(this, &MedianFilterForm::applyFilterButton_Click);
 
+            this->checkDevicesButton = (gcnew System::Windows::Forms::Button());
+            this->checkDevicesButton->Location = System::Drawing::Point(640, 16);
+            this->checkDevicesButton->Name = L"checkDevicesButton";
+            this->checkDevicesButton->Size = System::Drawing::Size(160, 30);
+            this->checkDevicesButton->Text = L"Check OpenCL Devices";
+            this->checkDevicesButton->UseVisualStyleBackColor = true;
+            this->checkDevicesButton->Click += gcnew System::EventHandler(this, &MedianFilterForm::checkDevicesButton_Click);
+
+            this->devicesListBox = (gcnew System::Windows::Forms::ListBox());
+            this->devicesListBox->Location = System::Drawing::Point(640, 56);
+            this->devicesListBox->Name = L"devicesListBox";
+            this->devicesListBox->Size = System::Drawing::Size(290, 260);
+            this->devicesListBox->HorizontalScrollbar = true;
+            this->devicesListBox->ScrollAlwaysVisible = true;
+            this->devicesListBox->IntegralHeight = false;
+            this->devicesListBox->SelectedIndexChanged += gcnew System::EventHandler(this, &MedianFilterForm::devicesListBox_SelectedIndexChanged);
+
+            this->Controls->Add(this->checkDevicesButton);
+            this->Controls->Add(this->devicesListBox);
+
+
+            this->loadImageButton = (gcnew System::Windows::Forms::Button());
+            this->loadImageButton->Location = System::Drawing::Point(70, 272);
+            this->loadImageButton->Name = L"loadImageButton";
+            this->loadImageButton->Size = System::Drawing::Size(100, 30);
+            this->loadImageButton->Text = L"Load Image";
+            this->loadImageButton->UseVisualStyleBackColor = true;
+            this->loadImageButton->Click += gcnew System::EventHandler(this, &MedianFilterForm::loadImageButton_Click);
+            this->Controls->Add(this->loadImageButton);
+
+
             this->AutoScaleDimensions = System::Drawing::SizeF(6, 13);
             this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
-            this->ClientSize = System::Drawing::Size(630, 380);  // ��������� ������ �����
+            this->ClientSize = System::Drawing::Size(950, 380);
             this->Controls->Add(this->applyFilterButton);
             this->Controls->Add(this->filterSizeControl);
             this->Controls->Add(this->filterSizeLabel);
@@ -166,7 +212,7 @@ namespace ImageNoiseApp {
             this->Controls->Add(this->filteredPictureBox);
             this->Controls->Add(this->noisyPictureBox);
             this->Name = L"MedianFilterForm";
-            this->Text = L"Median Filter";
+            this->Text = L"Filter";
             (cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->noisyPictureBox))->EndInit();
             (cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->filteredPictureBox))->EndInit();
             (cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->filterSizeControl))->EndInit();
@@ -175,6 +221,7 @@ namespace ImageNoiseApp {
 #pragma endregion
 
     private:
+
         void InitializeOpenCL()
         {
             try {
@@ -186,31 +233,27 @@ namespace ImageNoiseApp {
                 medianKernel = nullptr;
                 meanKernel = nullptr;
 
-                std::vector<cl::Platform> platforms;
-                cl::Platform::get(&platforms);
-
-                bool amdFound = false;
-                for (auto& p : platforms) {
-                    if (p.getInfo<CL_PLATFORM_NAME>().find("AMD") != std::string::npos) {
-                        *platform = p;
-                        amdFound = true;
-                        break;
-                    }
-                }
-                if (!amdFound) {
-                    MessageBox::Show("AMD platform not found");
+                if (selectedDeviceIndex < 0 || selectedDeviceIndex >= availableDevices1.size()) {
+                    MessageBox::Show("Пожалуйста, выберите OpenCL-устройство из списка.");
                     return;
                 }
 
-                std::vector<cl::Device> devices;
-                platform->getDevices(CL_DEVICE_TYPE_GPU, &devices);
-                if (devices.empty()) {
-                    MessageBox::Show("No GPU devices found");
-                    return;
-                }
-                *device = devices[0];
+                cl_device_id rawDevice = availableDevices1[selectedDeviceIndex];
+                cl::Device selectedDevice(rawDevice);
+                *device = selectedDevice;
 
-                context = new cl::Context(*device);
+               
+                cl_platform_id platId;
+                selectedDevice.getInfo(CL_DEVICE_PLATFORM, &platId);
+                cl::Platform selectedPlatform(platId);
+                *platform = selectedPlatform;
+
+                // Создаём контекст и очередь
+                cl_context_properties cps[] = {
+                    CL_CONTEXT_PLATFORM, (cl_context_properties)(platId),
+                    0
+                };
+                context = new cl::Context(std::vector<cl::Device>{ *device }, cps);
                 queue = new cl::CommandQueue(*context, *device);
 
                 String^ kernelSource = R"(
@@ -314,24 +357,26 @@ namespace ImageNoiseApp {
 
                 if (program->build({ *device }) != CL_SUCCESS) {
                     String^ buildLog = gcnew String(program->getBuildInfo<CL_PROGRAM_BUILD_LOG>(*device).c_str());
-                    MessageBox::Show("Program build failed: " + buildLog);
+                    MessageBox::Show("Ошибка сборки программы: " + buildLog);
                     return;
                 }
 
                 medianKernel = new cl::Kernel(*program, "medianFilter");
                 meanKernel = new cl::Kernel(*program, "meanFilter");
-            }
-            catch (std::exception& ex) {
-                MessageBox::Show("OpenCL initialization error: " + gcnew String(ex.what()));
-            }
-            catch (Exception^ ex) {
-                MessageBox::Show("Unexpected error: " + ex->Message);
-            }
-        }
+    }
+   
+    catch (std::exception& ex) {
+        MessageBox::Show("Ошибка инициализации OpenCL: " + gcnew String(ex.what()));
+    }
+    catch (Exception^ ex) {
+        MessageBox::Show("Ошибка .NET: " + ex->Message);
+    }
+}
 
         void ProcessImage()
         {
             try {
+
                 noisyPictureBox->Image = noisyImage;
 
                 BitmapData^ bmpData = noisyImage->LockBits(
@@ -359,7 +404,7 @@ namespace ImageNoiseApp {
                 selectedKernel->setArg(3, noisyImage->Height);
                 selectedKernel->setArg(4, filterSize);
 
-                // ��������� ������
+                // Запускаем таймер
                 Stopwatch^ sw = Stopwatch::StartNew();
 
                 cl::NDRange global(noisyImage->Width, noisyImage->Height);
@@ -382,18 +427,23 @@ namespace ImageNoiseApp {
                     return;
                 }
 
-                // ������������� ������
+                // Останавливаем таймер
                 sw->Stop();
-                double elapsedSeconds = sw->ElapsedMilliseconds / 1000.0;
+                double elapsedHighRes = static_cast<double>(sw->ElapsedTicks) / Stopwatch::Frequency;
 
                 noisyImage->UnlockBits(bmpData);
                 filteredImage->UnlockBits(outData);
-
+                if (filteredPictureBox->Image != nullptr)
+                {
+                    delete filteredPictureBox->Image;
+                    filteredPictureBox->Image = nullptr;
+                }
                 filteredPictureBox->Image = filteredImage;
 
-                // ��������� ����� � ��������
+                // Обновляем метку с временем
                 String^ filterType = filterTypeListBox->SelectedIndex == 0 ? "Median" : "Mean";
-                filterTimeLabel->Text = String::Format("Filter Time: {0:F3} s ({1})", elapsedSeconds, filterType);
+                filterTimeLabel->Text =
+                    String::Format("Filter Time: {0:F6} s ({1})", elapsedHighRes, filterType);
             }
             catch (std::exception& ex) {
                 MessageBox::Show("OpenCL processing error: " + gcnew String(ex.what()));
@@ -407,5 +457,119 @@ namespace ImageNoiseApp {
         {
             ProcessImage();
         }
+        System::Void checkDevicesButton_Click(System::Object^ sender, System::EventArgs^ e) {
+            devicesListBox->Items->Clear();
+            availableDevices1.clear(); // Очищаем список доступных устройств при новом поиске
+
+            cl_uint numPlatforms = 0;
+            cl_int res = clGetPlatformIDs(0, nullptr, &numPlatforms);
+            if (res != CL_SUCCESS || numPlatforms == 0) {
+                devicesListBox->Items->Add("Платформы не найдены");
+                return;
+            }
+
+            std::vector<cl_platform_id> platforms(numPlatforms);
+            clGetPlatformIDs(numPlatforms, platforms.data(), nullptr);
+
+            for (cl_uint i = 0; i < numPlatforms; ++i) {
+                char platformName[128];
+                clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME, sizeof(platformName), platformName, nullptr);
+                devicesListBox->Items->Add(gcnew String("Платформа " + i + ": " + gcnew String(platformName)));
+
+                cl_device_type deviceTypes[] = {
+                    CL_DEVICE_TYPE_CPU,
+                    CL_DEVICE_TYPE_GPU,
+                    CL_DEVICE_TYPE_ACCELERATOR,
+                    CL_DEVICE_TYPE_DEFAULT,
+                    CL_DEVICE_TYPE_CUSTOM
+                };
+
+                for (int t = 0; t < sizeof(deviceTypes) / sizeof(deviceTypes[0]); ++t) {
+                    cl_uint numDevices = 0;
+                    clGetDeviceIDs(platforms[i], deviceTypes[t], 0, nullptr, &numDevices);
+
+                    if (numDevices == 0)
+                        continue;
+
+                    std::vector<cl_device_id> devices(numDevices);
+                    clGetDeviceIDs(platforms[i], deviceTypes[t], numDevices, devices.data(), nullptr);
+
+                    for (cl_uint j = 0; j < numDevices; ++j) {
+                        char deviceName[128];
+                        clGetDeviceInfo(devices[j], CL_DEVICE_NAME, sizeof(deviceName), deviceName, nullptr);
+
+                        cl_uint computeUnits = 0;
+                        clGetDeviceInfo(devices[j], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(computeUnits), &computeUnits, nullptr);
+
+                        cl_uint clockFrequency = 0;
+                        clGetDeviceInfo(devices[j], CL_DEVICE_MAX_CLOCK_FREQUENCY, sizeof(clockFrequency), &clockFrequency, nullptr);
+
+                        cl_ulong globalMemSize = 0;
+                        clGetDeviceInfo(devices[j], CL_DEVICE_GLOBAL_MEM_SIZE, sizeof(globalMemSize), &globalMemSize, nullptr);
+
+                        char version[128];
+                        clGetDeviceInfo(devices[j], CL_DEVICE_VERSION, sizeof(version), version, nullptr);
+
+                        String^ typeName;
+                        switch (deviceTypes[t]) {
+                        case CL_DEVICE_TYPE_CPU: typeName = "CPU"; break;
+                        case CL_DEVICE_TYPE_GPU: typeName = "GPU"; break;
+                        case CL_DEVICE_TYPE_ACCELERATOR: typeName = "Accelerator"; break;
+                        case CL_DEVICE_TYPE_DEFAULT: typeName = "Default"; break;
+                        case CL_DEVICE_TYPE_CUSTOM: typeName = "Custom"; break;
+                        default: typeName = "Unknown"; break;
+                        }
+
+                        String^ deviceInfo = "  [" + typeName + "] Устройство " + j + ": " + gcnew String(deviceName) +
+                            " | Ядер: " + computeUnits +
+                            " | Частота: " + clockFrequency + " МГц" +
+                            " | Память: " + (globalMemSize / (1024 * 1024)) + " МБ" +
+                            " | Версия: " + gcnew String(version);
+
+                        devicesListBox->Items->Add(deviceInfo);
+                        availableDevices1.push_back(devices[j]);
+                    }
+                }
+            }
+        }
+
+        private: System::Void loadImageButton_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            OpenFileDialog^ openFileDialog = gcnew OpenFileDialog();
+            openFileDialog->Filter = "Image Files|*.bmp;*.jpg;*.jpeg;*.png";
+
+            if (openFileDialog->ShowDialog() == System::Windows::Forms::DialogResult::OK)
+            {
+                Bitmap^ newImage = dynamic_cast<Bitmap^>(Image::FromFile(openFileDialog->FileName));
+                if (noisyImage != nullptr) delete noisyImage;
+                noisyImage = newImage;
+                noisyPictureBox->Image = noisyImage;
+
+                // Очищаем предыдущий результат
+                if (filteredImage != nullptr) {
+                    delete filteredImage;
+                    filteredImage = nullptr;
+                    filteredPictureBox->Image = nullptr;
+                }
+            }
+        }
+               System::Void devicesListBox_SelectedIndexChanged(System::Object^ sender, System::EventArgs^ e) {
+                   int index = this->devicesListBox->SelectedIndex;
+                   
+                   if (availableDevices1.size() > 0) {
+                       selectedDeviceIndex = 0; 
+                       InitializeOpenCL();
+                   }
+                   Object^ sel = this->devicesListBox->SelectedItem;
+                   if (sel != nullptr && selectedDeviceIndex < availableDevices1.size()) {
+                       selectedDeviceIndex = this->devicesListBox->SelectedIndex;
+
+                       String^ info = safe_cast<String^>(sel);
+                       MessageBox::Show("Вы выбрали устройство:\n" + info);
+
+                       InitializeOpenCL();
+                   }
+
+               }
     };
 }

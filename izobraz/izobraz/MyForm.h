@@ -3,6 +3,7 @@
 #include "SimpleFilterForm.h"
 
 #include <random>
+std::vector<cl_device_id> availableDevices;
 
 namespace ImageNoiseApp {
 
@@ -50,6 +51,7 @@ namespace ImageNoiseApp {
         System::ComponentModel::Container^ components;
         System::Windows::Forms::Button^ checkDevicesButton;
         System::Windows::Forms::ListBox^ devicesListBox;
+        System::Windows::Forms::Button^ saveButton;
 
         Bitmap^ originalImage;
 
@@ -67,6 +69,8 @@ namespace ImageNoiseApp {
             this->noiseTypeLabel = (gcnew System::Windows::Forms::Label());
             this->filterMethodListBox = (gcnew System::Windows::Forms::ListBox());
             this->filterMethodLabel = (gcnew System::Windows::Forms::Label());
+            
+
             //this->experimentButton = (gcnew System::Windows::Forms::Button());
             (cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->originalPictureBox))->BeginInit();
             (cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->noisyPictureBox))->BeginInit();
@@ -146,7 +150,7 @@ namespace ImageNoiseApp {
             this->filterMethodListBox->SelectedIndex = 0;
 
             // filterButton
-            this->filterButton->Location = System::Drawing::Point(760, 318);
+            this->filterButton->Location = System::Drawing::Point(654, 278);
             this->filterButton->Name = L"filterButton";
             this->filterButton->Size = System::Drawing::Size(100, 30);
             this->filterButton->Text = L"Filter Image";
@@ -154,31 +158,20 @@ namespace ImageNoiseApp {
             this->filterButton->Enabled = false;
             this->filterButton->Click += gcnew System::EventHandler(this, &Form1::filterButton_Click);
 
-            // checkDevicesButton
-            this->checkDevicesButton = (gcnew System::Windows::Forms::Button());
-            this->checkDevicesButton->Location = System::Drawing::Point(650, 60);
-            this->checkDevicesButton->Name = L"checkDevicesButton";
-            this->checkDevicesButton->Size = System::Drawing::Size(150, 30);
-            this->checkDevicesButton->Text = L"Check OpenCL Devices";
-            this->checkDevicesButton->UseVisualStyleBackColor = true;
-            this->checkDevicesButton->Click += gcnew System::EventHandler(this, &Form1::checkDevicesButton_Click);
+            
 
-            // devicesListBox
-            this->devicesListBox = (gcnew System::Windows::Forms::ListBox());
-            this->devicesListBox->Location = System::Drawing::Point(650, 90);
-            this->devicesListBox->Name = L"devicesListBox";
-            this->devicesListBox->Size = System::Drawing::Size(200, 100);
+            this->saveButton = (gcnew System::Windows::Forms::Button());
+            this->saveButton->Location = System::Drawing::Point(654, 218);
+            this->saveButton->Name = L"saveButton";
+            this->saveButton->Size = System::Drawing::Size(100, 30);
+            this->saveButton->Text = L"Save Image";
+            this->saveButton->UseVisualStyleBackColor = true;
+            this->saveButton->Click += gcnew System::EventHandler(this, &Form1::saveButton_Click);
 
-            // Добавить элементы на форму:
-            this->Controls->Add(this->checkDevicesButton);
-            this->Controls->Add(this->devicesListBox);
-
-         
-
-        
+      
             this->AutoScaleDimensions = System::Drawing::SizeF(6, 13);
             this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
-            this->ClientSize = System::Drawing::Size(976, 380);  
+            this->ClientSize = System::Drawing::Size(770, 380);  
             //this->Controls->Add(this->experimentButton);
             this->Controls->Add(this->filterButton);
             this->Controls->Add(this->filterMethodListBox);
@@ -191,6 +184,7 @@ namespace ImageNoiseApp {
             this->Controls->Add(this->loadButton);
             this->Controls->Add(this->noisyPictureBox);
             this->Controls->Add(this->originalPictureBox);
+            this->Controls->Add(this->saveButton);
             this->Name = L"Form1";
             this->Text = L"Image Noise Generator";
             (cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->originalPictureBox))->EndInit();
@@ -284,36 +278,31 @@ namespace ImageNoiseApp {
                 }
             }
         }
-        System::Void checkDevicesButton_Click(System::Object^ sender, System::EventArgs^ e) {
-            devicesListBox->Items->Clear();
+        
+        System::Void saveButton_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            if (noisyPictureBox->Image != nullptr)
+            {
+                SaveFileDialog^ saveDialog = gcnew SaveFileDialog();
+                saveDialog->Filter = "PNG Image|*.png|Bitmap Image|*.bmp|JPEG Image|*.jpg";
+                saveDialog->Title = "Save Noisy Image";
 
-            cl_uint numPlatforms = 0;
-            cl_int res = clGetPlatformIDs(0, nullptr, &numPlatforms);
-            if (res != CL_SUCCESS || numPlatforms == 0) {
-                devicesListBox->Items->Add("Платформы не найдены");
-                return;
-            }
-
-            std::vector<cl_platform_id> platforms(numPlatforms);
-            clGetPlatformIDs(numPlatforms, platforms.data(), nullptr);
-
-            for (cl_uint i = 0; i < numPlatforms; ++i) {
-                char platformName[128];
-                clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME, sizeof(platformName), platformName, nullptr);
-                devicesListBox->Items->Add(gcnew String("Платформа " + i + ": " + gcnew String(platformName)));
-
-                cl_uint numDevices = 0;
-                clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, 0, nullptr, &numDevices);
-                std::vector<cl_device_id> devices(numDevices);
-                clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, numDevices, devices.data(), nullptr);
-
-                for (cl_uint j = 0; j < numDevices; ++j) {
-                    char deviceName[128];
-                    clGetDeviceInfo(devices[j], CL_DEVICE_NAME, sizeof(deviceName), deviceName, nullptr);
-                    devicesListBox->Items->Add("  Устройство " + j + ": " + gcnew String(deviceName));
+                if (saveDialog->ShowDialog() == System::Windows::Forms::DialogResult::OK)
+                {
+                    Bitmap^ bmpToSave = gcnew Bitmap(noisyPictureBox->Image);
+                    bmpToSave->Save(saveDialog->FileName);
+                    MessageBox::Show("Image saved successfully.", "Success", MessageBoxButtons::OK, MessageBoxIcon::Information);
+                    delete bmpToSave;
                 }
             }
+            else
+            {
+                MessageBox::Show("No noisy image to save.", "Error", MessageBoxButtons::OK, MessageBoxIcon::Error);
+            }
         }
+
+
+       
         System::Void applyNoiseButton_Click(System::Object^ sender, System::EventArgs^ e)
         {
             if (originalImage != nullptr)
