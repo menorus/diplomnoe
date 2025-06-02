@@ -257,11 +257,12 @@ namespace ImageNoiseApp {
                 queue = new cl::CommandQueue(*context, *device);
 
                 String^ kernelSource = R"(
-                    __kernel void medianFilter(__global uchar* input, 
-                                             __global uchar* output, 
-                                             int width, 
-                                             int height,
-                                             int filterSize)
+                   __kernel void medianFilter(__global uchar* input, 
+                           __global uchar* output, 
+                           int width, 
+                           int height,
+                           int filterSize,
+                           int stride)
                     {
                         int x = get_global_id(0);
                         int y = get_global_id(1);
@@ -278,7 +279,7 @@ namespace ImageNoiseApp {
                             for (int dx = -halfSize; dx <= halfSize; dx++) {
                                 int nx = clamp(x + dx, 0, width - 1);
                                 int ny = clamp(y + dy, 0, height - 1);
-                                int idx = (ny * width + nx) * 3;
+                                int idx = ny * stride + nx * 3;
                                 r[count] = input[idx];
                                 g[count] = input[idx + 1];
                                 b[count] = input[idx + 2];
@@ -307,17 +308,18 @@ namespace ImageNoiseApp {
                         }
 
                         int medianIdx = count / 2;
-                        int outIdx = (y * width + x) * 3;
+                        int outIdx = y * stride + x * 3;
                         output[outIdx] = r[medianIdx];
                         output[outIdx + 1] = g[medianIdx];
                         output[outIdx + 2] = b[medianIdx];
                     }
 
                     __kernel void meanFilter(__global uchar* input, 
-                                           __global uchar* output, 
-                                           int width, 
-                                           int height,
-                                           int filterSize)
+                           __global uchar* output, 
+                           int width, 
+                           int height,
+                           int filterSize,
+                           int stride)
                     {
                         int x = get_global_id(0);
                         int y = get_global_id(1);
@@ -332,7 +334,7 @@ namespace ImageNoiseApp {
                             for (int dx = -halfSize; dx <= halfSize; dx++) {
                                 int nx = clamp(x + dx, 0, width - 1);
                                 int ny = clamp(y + dy, 0, height - 1);
-                                int idx = (ny * width + nx) * 3;
+                                int idx = ny * stride + nx * 3;
                                 rSum += input[idx];
                                 gSum += input[idx + 1];
                                 bSum += input[idx + 2];
@@ -340,7 +342,7 @@ namespace ImageNoiseApp {
                             }
                         }
 
-                        int outIdx = (y * width + x) * 3;
+                        int outIdx = y * stride + x * 3;
                         output[outIdx] = (uchar)(rSum / count);
                         output[outIdx + 1] = (uchar)(gSum / count);
                         output[outIdx + 2] = (uchar)(bSum / count);
@@ -384,10 +386,13 @@ namespace ImageNoiseApp {
                     ImageLockMode::ReadOnly,
                     PixelFormat::Format24bppRgb);
 
-                int size = noisyImage->Width * noisyImage->Height * 3;
+                int stride = bmpData->Stride;
+                int size = stride * noisyImage->Height;
+
 
                 cl::Buffer inputBuffer(*context, CL_MEM_READ_ONLY, size);
                 cl::Buffer outputBuffer(*context, CL_MEM_WRITE_ONLY, size);
+
 
                 if (queue->enqueueWriteBuffer(inputBuffer, CL_TRUE, 0, size, bmpData->Scan0.ToPointer()) != CL_SUCCESS) {
                     MessageBox::Show("Failed to write input buffer");
@@ -403,7 +408,7 @@ namespace ImageNoiseApp {
                 selectedKernel->setArg(2, noisyImage->Width);
                 selectedKernel->setArg(3, noisyImage->Height);
                 selectedKernel->setArg(4, filterSize);
-
+                selectedKernel->setArg(5, stride);
                 // Запускаем таймер
                 Stopwatch^ sw = Stopwatch::StartNew();
 
@@ -533,26 +538,33 @@ namespace ImageNoiseApp {
             }
         }
 
-        private: System::Void loadImageButton_Click(System::Object^ sender, System::EventArgs^ e)
-        {
-            OpenFileDialog^ openFileDialog = gcnew OpenFileDialog();
-            openFileDialog->Filter = "Image Files|*.bmp;*.jpg;*.jpeg;*.png";
+       private: System::Void loadImageButton_Click(System::Object^ sender, System::EventArgs^ e)
+       {
+           OpenFileDialog^ openFileDialog = gcnew OpenFileDialog();
+           openFileDialog->Filter = "Image Files|*.bmp;*.jpg;*.jpeg;*.png";
 
-            if (openFileDialog->ShowDialog() == System::Windows::Forms::DialogResult::OK)
-            {
-                Bitmap^ newImage = dynamic_cast<Bitmap^>(Image::FromFile(openFileDialog->FileName));
-                if (noisyImage != nullptr) delete noisyImage;
-                noisyImage = newImage;
-                noisyPictureBox->Image = noisyImage;
+           if (openFileDialog->ShowDialog() == System::Windows::Forms::DialogResult::OK)
+           {
+               Bitmap^ newImage = dynamic_cast<Bitmap^>(Image::FromFile(openFileDialog->FileName));
+               if (noisyImage != nullptr) delete noisyImage;
+               noisyImage = newImage;
 
-                // Очищаем предыдущий результат
-                if (filteredImage != nullptr) {
-                    delete filteredImage;
-                    filteredImage = nullptr;
-                    filteredPictureBox->Image = nullptr;
-                }
-            }
-        }
+               // Устанавливаем масштабирование изображения под PictureBox
+               noisyPictureBox->SizeMode = PictureBoxSizeMode::Zoom;
+               noisyPictureBox->Image = noisyImage;
+
+               // Очищаем предыдущий результат
+               if (filteredImage != nullptr) {
+                   delete filteredImage;
+                   filteredImage = nullptr;
+                   filteredPictureBox->Image = nullptr;
+               }
+
+               // Тоже можно установить SizeMode для filteredPictureBox заранее
+               filteredPictureBox->SizeMode = PictureBoxSizeMode::Zoom;
+           }
+       }
+
                System::Void devicesListBox_SelectedIndexChanged(System::Object^ sender, System::EventArgs^ e) {
                    int index = this->devicesListBox->SelectedIndex;
                    

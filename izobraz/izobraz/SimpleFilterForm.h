@@ -1,5 +1,5 @@
 #pragma once
-
+#include <omp.h>
 namespace ImageNoiseApp {
 
     using namespace System;
@@ -195,6 +195,7 @@ namespace ImageNoiseApp {
                 Stopwatch^ sw = Stopwatch::StartNew();
 
                 if (filterTypeListBox->SelectedIndex == 0) {  // Медианный фильтр
+                    #pragma omp parallel for
                     for (int y = 0; y < noisyImage->Height; y++) {
                         for (int x = 0; x < noisyImage->Width; x++) {
                             array<Byte>^ rValues = gcnew array<Byte>(filterSize * filterSize);
@@ -227,6 +228,7 @@ namespace ImageNoiseApp {
                     }
                 }
                 else {  // Средний фильтр
+                    #pragma omp parallel for
                     for (int y = 0; y < noisyImage->Height; y++) {
                         for (int x = 0; x < noisyImage->Width; x++) {
                             int rSum = 0, gSum = 0, bSum = 0;
