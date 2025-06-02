@@ -219,32 +219,39 @@ namespace ImageNoiseApp {
             if (noiseTypeListBox->SelectedIndex == 0) {  // Импульсный шум
                 std::uniform_real_distribution<> dis(0.0, 1.0);
                 float noiseProbability = noiseLevel / 100.0f;
-                for (int i = 0; i < bytes; i += 3) {
-                    if (dis(gen) < noiseProbability) {
-                        if (dis(gen) < 0.5) {
-                            pixelData[i] = 255;      // Белый пиксель (соль)
-                            pixelData[i + 1] = 255;
-                            pixelData[i + 2] = 255;
-                        }
-                        else {
-                            pixelData[i] = 0;        // Черный пиксель (перец)
-                            pixelData[i + 1] = 0;
-                            pixelData[i + 2] = 0;
+                for (int y = 0; y < srcData->Height; ++y) {
+                    for (int x = 0; x < srcData->Width; ++x) {
+                        int index = y * stride + x * 3;
+                        if (dis(gen) < noiseProbability) {
+                            if (dis(gen) < 0.5) {
+                                pixelData[index + 0] = 255; // Blue
+                                pixelData[index + 1] = 255; // Green
+                                pixelData[index + 2] = 255; // Red
+                            }
+                            else {
+                                pixelData[index + 0] = 0;
+                                pixelData[index + 1] = 0;
+                                pixelData[index + 2] = 0;
+                            }
                         }
                     }
                 }
             }
             else {  // Гауссовский шум
                 std::normal_distribution<> dis(0.0, noiseLevel);
-                for (int i = 0; i < bytes; i += 3) {
-                    int r = pixelData[i] + (int)dis(gen);
-                    int g = pixelData[i + 1] + (int)dis(gen);
-                    int b = pixelData[i + 2] + (int)dis(gen);
-                    pixelData[i] = (Byte)Math::Max(0, Math::Min(255, r));
-                    pixelData[i + 1] = (Byte)Math::Max(0, Math::Min(255, g));
-                    pixelData[i + 2] = (Byte)Math::Max(0, Math::Min(255, b));
+                for (int y = 0; y < srcData->Height; ++y) {
+                    for (int x = 0; x < srcData->Width; ++x) {
+                        int index = y * stride + x * 3;
+                        int b = pixelData[index + 0] + (int)dis(gen);
+                        int g = pixelData[index + 1] + (int)dis(gen);
+                        int r = pixelData[index + 2] + (int)dis(gen);
+                        pixelData[index + 0] = (Byte)Math::Max(0, Math::Min(255, b));
+                        pixelData[index + 1] = (Byte)Math::Max(0, Math::Min(255, g));
+                        pixelData[index + 2] = (Byte)Math::Max(0, Math::Min(255, r));
+                    }
                 }
             }
+
 
             Marshal::Copy(pixelData, 0, dstData->Scan0, bytes);
             original->UnlockBits(srcData);
